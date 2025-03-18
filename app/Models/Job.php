@@ -46,14 +46,14 @@ class Job extends Model
         return $this->belongsToMany(Category::class);
     }
 
-    public function attributes(): BelongsToMany
+    public function attributesRelation(): BelongsToMany
     {
         return $this->belongsToMany(Attribute::class, 'job_attribute_values')
             ->withPivot('value')
             ->withTimestamps();
     }
 
-    public function attributeValues(): HasMany
+    public function attributeValuesRelation(): HasMany
     {
         return $this->hasMany(JobAttributeValue::class);
     }
@@ -61,7 +61,7 @@ class Job extends Model
     /**
      * Get an attribute value by attribute name
      */
-    public function getAttributeValue($key)
+    public function getAttributeValueRelation($key)
     {
         $attributeValue = $this->attributeValues()
             ->whereHas('attribute', function ($query) use ($key) {
@@ -76,7 +76,7 @@ class Job extends Model
     /**
      * Set an attribute value
      */
-    public function setAttributeValue(string $attributeName, $value): bool
+    public function setAttributeValueRelation(string $attributeName, $value): bool
     {
         $attribute = Attribute::where('name', $attributeName)->first();
 
@@ -84,14 +84,14 @@ class Job extends Model
             return false;
         }
 
-        $attributeValue = $this->attributeValues()
+        $attributeValue = $this->attributeValuesRelation()
             ->where('attribute_id', $attribute->id)
             ->first();
 
         if ($attributeValue) {
             $attributeValue->update(['value' => $value]);
         } else {
-            $this->attributeValues()->create([
+            $this->attributeValuesRelation()->create([
                 'attribute_id' => $attribute->id,
                 'value' => $value,
             ]);
@@ -106,12 +106,12 @@ class Job extends Model
      * @param array $attributes Array of attribute name => value pairs
      * @return bool
      */
-    public function setAttributeValues(array $attributes): bool
+    public function setAttributeValuesRelation(array $attributes): bool
     {
         $success = true;
 
         foreach ($attributes as $name => $value) {
-            $result = $this->setAttributeValue($name, $value);
+            $result = $this->setAttributeValueRelation($name, $value);
             if (!$result) {
                 $success = false;
             }

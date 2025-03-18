@@ -25,7 +25,7 @@ class DatabaseSeeder extends Seeder
             LocationsSeeder::class,
             CategoriesSeeder::class,
             AttributesSeeder::class,
-//            JobsSeeder::class,
+            JobsSeeder::class,
         ]);
     }
 }

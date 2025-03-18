@@ -22,9 +22,9 @@ class JobsSeeder extends Seeder
     public function run(): void
     {
         $this->createFullTimeSoftwareJobs();
-//        $this->createPartTimeDesignJobs();
-//        $this->createContractDataJobs();
-//        $this->createFreelanceJobs();
+        $this->createPartTimeDesignJobs();
+        $this->createContractDataJobs();
+        $this->createFreelanceJobs();
     }
 
     /**
@@ -386,7 +386,7 @@ class JobsSeeder extends Seeder
 
             // Add attribute values
             if (!empty($attributes)) {
-                $job->setAttributeValues($attributes);
+                $job->setAttributeValuesRelation($attributes);
             }
             DB::commit();
         }
