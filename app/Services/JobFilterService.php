@@ -21,18 +21,18 @@ class JobFilterService implements IJobFilterService
         $query = Job::query();
 
         // If there's a filter parameter, parse and apply it
-        if (isset($filters['filter']) && !empty($filters['filter'])) {
+        if (!empty($filters['filter'])) {
             $filterString = $filters['filter'];
             $query = $this->parseFilterExpression($query, $filterString);
         }
 
         // Apply sorting
-        if (isset($filters['sort_by']) && !empty($filters['sort_by'])) {
+        if (!empty($filters['sort_by'])) {
             $sortField = $filters['sort_by'];
             $sortDirection = $filters['sort_direction'] ?? 'asc';
 
             // Check if sorting by an attribute
-            if (strpos($sortField, 'attribute:') === 0) {
+            if (str_starts_with($sortField, 'attribute:')) {
                 $attributeName = substr($sortField, 10);
                 $query = $this->sortByAttribute($query, $attributeName, $sortDirection);
             } else {
@@ -94,7 +94,7 @@ class JobFilterService implements IJobFilterService
     {
         $expression = trim($expression);
 
-        if (substr($expression, 0, 1) === '(' && substr($expression, -1) === ')') {
+        if (str_starts_with($expression, '(') && substr($expression, -1) === ')') {
             // Count parentheses to make sure the outer ones match
             $depth = 0;
             for ($i = 0; $i < strlen($expression) - 1; $i++) {
@@ -175,23 +175,23 @@ class JobFilterService implements IJobFilterService
     protected function applyBasicCondition(Builder $query, string $condition): Builder
     {
         // Check for relationship filters
-        if (strpos($condition, ' HAS_ANY ') !== false) {
+        if (str_contains($condition, ' HAS_ANY ')) {
             [$relation, $values] = explode(' HAS_ANY ', $condition);
             return $this->applyHasAnyFilter($query, $relation, $values);
         }
 
-        if (strpos($condition, ' IS_ANY ') !== false) {
+        if (str_contains($condition, ' IS_ANY ')) {
             [$relation, $values] = explode(' IS_ANY ', $condition);
             return $this->applyIsAnyFilter($query, $relation, $values);
         }
 
-        if (strpos($condition, ' EXISTS') !== false) {
+        if (str_contains($condition, ' EXISTS')) {
             $relation = trim(str_replace(' EXISTS', '', $condition));
             return $this->applyExistsFilter($query, $relation);
         }
 
         // Check for attribute filters
-        if (strpos($condition, 'attribute:') === 0) {
+        if (str_starts_with($condition, 'attribute:')) {
             return $this->applyAttributeFilter($query, $condition);
         }
 
@@ -199,25 +199,25 @@ class JobFilterService implements IJobFilterService
         $operators = ['>=', '<=', '!=', '=', '>', '<', ' LIKE '];
 
         foreach ($operators as $operator) {
-            if (strpos($condition, $operator) !== false) {
+            if (str_contains($condition, $operator)) {
                 $parts = explode($operator, $condition, 2);
                 if (count($parts) === 2) {
                     $field = trim($parts[0]);
                     $value = trim($parts[1]);
 
                     // Handle IN operator (multiple values)
-                    if (strpos($value, '(') === 0 && strpos($value, ')') === strlen($value) - 1) {
+                    if (str_starts_with($value, '(') && strpos($value, ')') === strlen($value) - 1) {
                         return $this->applyInFilter($query, $field, $value, $operator);
                     }
 
                     // Remove quotes if present
-                    if ((strpos($value, "'") === 0 && strrpos($value, "'") === strlen($value) - 1) ||
-                        (strpos($value, '"') === 0 && strrpos($value, '"') === strlen($value) - 1)) {
+                    if ((str_starts_with($value, "'") && strrpos($value, "'") === strlen($value) - 1) ||
+                        (str_starts_with($value, '"') && strrpos($value, '"') === strlen($value) - 1)) {
                         $value = substr($value, 1, -1);
                     }
 
                     // Convert boolean string values to actual booleans for boolean fields
-                    if (in_array($field, ['is_remote']) && in_array(strtolower($value), ['true', 'false'])) {
+                    if ($field == 'is_remote' && in_array(strtolower($value), ['true', 'false'])) {
                         $value = strtolower($value) === 'true';
                     }
 
@@ -352,7 +352,7 @@ class JobFilterService implements IJobFilterService
     protected function parseValueList(string $valueList): array
     {
         // Remove parentheses if present
-        if (strpos($valueList, '(') === 0 && strrpos($valueList, ')') === strlen($valueList) - 1) {
+        if (str_starts_with($valueList, '(') && strrpos($valueList, ')') === strlen($valueList) - 1) {
             $valueList = substr($valueList, 1, -1);
         }
 
@@ -361,8 +361,8 @@ class JobFilterService implements IJobFilterService
 
         // Remove quotes if present
         foreach ($values as &$value) {
-            if ((strpos($value, "'") === 0 && strrpos($value, "'") === strlen($value) - 1) ||
-                (strpos($value, '"') === 0 && strrpos($value, '"') === strlen($value) - 1)) {
+            if ((str_starts_with($value, "'") && strrpos($value, "'") === strlen($value) - 1) ||
+                (str_starts_with($value, '"') && strrpos($value, '"') === strlen($value) - 1)) {
                 $value = substr($value, 1, -1);
             }
         }
@@ -397,7 +397,7 @@ class JobFilterService implements IJobFilterService
         $value = null;
 
         foreach ($operators as $op) {
-            if (strpos($restOfCondition, $op) === 0) {
+            if (str_starts_with($restOfCondition, $op)) {
                 $operator = $op;
                 $value = trim(substr($restOfCondition, strlen($op)));
                 break;
@@ -409,8 +409,8 @@ class JobFilterService implements IJobFilterService
         }
 
         // Remove quotes if present
-        if ((strpos($value, "'") === 0 && strrpos($value, "'") === strlen($value) - 1) ||
-            (strpos($value, '"') === 0 && strrpos($value, '"') === strlen($value) - 1)) {
+        if ((str_starts_with($value, "'") && strrpos($value, "'") === strlen($value) - 1) ||
+            (str_starts_with($value, '"') && strrpos($value, '"') === strlen($value) - 1)) {
             $value = substr($value, 1, -1);
         }
 
@@ -434,7 +434,7 @@ class JobFilterService implements IJobFilterService
         // Handle IN operator for select type attributes
         if (($attribute->type === AttributeTypeEnum::SELECT ||
                 (property_exists($attribute, 'type') && $attribute->type === 'select')) &&
-            strpos($value, '(') === 0 &&
+            str_starts_with($value, '(') &&
             strpos($value, ')') === strlen($value) - 1) {
 
             $values = $this->parseValueList($value);
@@ -485,10 +485,8 @@ class JobFilterService implements IJobFilterService
      */
     protected function applyAttributeFilterWithTableName(Builder $query, $attribute, $operator, $value): Builder
     {
-        // Default table name is job_attribute_values
-        $tableName = 'job_attribute_values';
-
-        return $query->whereExists(function ($subQuery) use ($tableName, $attribute, $operator, $value) {
+        return $query->whereExists(function ($subQuery) use ($attribute, $operator, $value) {
+            $tableName = 'job_attribute_values';
             $subQuery->select(DB::raw(1))
                 ->from($tableName)
                 ->whereRaw($tableName . '.job_id = jobs.id')

@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Services\IJobFilterService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Query\Builder;
 
 class Job extends Model
 {
@@ -29,6 +31,14 @@ class Job extends Model
         'salary_max' => 'decimal:2',
         'published_at' => 'datetime',
     ];
+
+    /**
+     * Scope to filter jobs based on a complete filter string
+     */
+    public function scopeApplyFilters(Builder $query, array $filters): Builder
+    {
+        return app(IJobFilterService::class)->applyFilters($filters);
+    }
 
 
     public function languages(): BelongsToMany
