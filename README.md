@@ -1,25 +1,27 @@
-# Job Board API with Entity-Attribute-Value (EAV) Implementation
+# Job Board API with Advanced Filtering Architecture
 
-This project implements a Job Board API with advanced filtering capabilities, using a combination of traditional relational database models and the Entity-Attribute-Value (EAV) design pattern.
+This project implements a Job Board API with sophisticated filtering capabilities, using a combination of traditional relational database models, the Entity-Attribute-Value (EAV) design pattern, and the Filter Registry pattern for extensible query processing.
 
-## Core Features
+## 🌟 Core Features
 
-- Standard job attributes (title, description, salary, etc.)
-- Many-to-Many relationships (languages, locations, categories)
-- Dynamic attributes using EAV design pattern
-- Advanced filtering API with complex query capabilities
-- Support for logical operators (AND/OR) and grouping
+- **Standard job attributes**: title, description, salary, etc.
+- **Many-to-Many relationships**: languages, locations, categories
+- **Dynamic attributes**: using EAV design pattern for flexible data schema
+- **Advanced filtering API**: with complex query capabilities supporting logical operators and nested conditions
+- **Modular filter architecture**: using the Filter Registry pattern for extensibility
 
-## Entity-Attribute-Value Implementation
+## 🏗️ Architecture Overview
 
-The EAV pattern is implemented using the following structure:
+### Entity-Attribute-Value Implementation
 
-### Database Tables
+The EAV pattern provides flexibility for storing dynamic attributes without altering the database schema:
+
+#### Database Tables
 
 - `attributes`: Stores attribute definitions (name, type, options)
 - `job_attribute_values`: Stores the values for each attribute for each job
 
-### Attribute Types
+#### Attribute Types
 
 The system supports the following attribute types:
 
@@ -29,13 +31,39 @@ The system supports the following attribute types:
 - `date`: Date values
 - `select`: Selection from predefined options
 
-### Models
+#### Models
 
 - `Attribute`: Defines the attribute metadata
 - `JobAttributeValue`: Stores the actual values
 - `Job`: Core entity that can have multiple dynamic attributes
 
-## Usage Examples
+### Filter Registry Pattern
+
+The system implements a Filter Registry pattern for processing search queries, offering several benefits:
+
+#### Key Components
+
+- `FilterCondition` interface: Defines the contract for all filter types
+- `FilterRegistry`: Manages the collection of filter implementations
+- `JobFilterService`: Coordinates the filtering process using registered filter handlers
+
+#### Benefits of the Filter Registry Pattern
+
+1. **Modularity**: Each filter type is encapsulated in its own class
+2. **Extensibility**: New filter types can be added without modifying existing code
+3. **Separation of Concerns**: Each filter class focuses on one specific filtering mechanism
+4. **Maintainability**: Easier to test and debug individual filter components
+5. **Scalability**: Filter implementations can be optimized independently
+
+#### Filter Types
+
+- `AttributeFilter`: Handles filtering by EAV attributes
+- `HasAnyFilter`: Filters by relationships with any of the specified values
+- `IsAnyFilter`: Specialized location filtering with remote work handling
+- `ExistsFilter`: Filters by existence of relationships
+- `BasicConditionFilter`: Handles standard field comparisons
+
+## 💻 Usage Examples
 
 ### Creating a Job with Dynamic Attributes
 
@@ -87,9 +115,9 @@ echo $job->getAttributeValueRelation('years_experience'); // Returns 5
 echo $job->getAttributeValueRelation('education_level'); // Returns "Bachelor's Degree"
 ```
 
-## API Filtering Syntax
+## 🔍 API Filtering Syntax
 
-The API supports advanced filtering through the `filter` query parameter.
+The API supports advanced filtering through the `filter` query parameter, processed by our Filter Registry pattern.
 
 ### Basic Field Filtering
 
@@ -136,7 +164,7 @@ The API supports advanced filtering through the `filter` query parameter.
 /api/jobs?filter=(attribute:seniority_level=Entry Level OR attribute:seniority_level=Junior) AND attribute:application_deadline>2023-10-01
 ```
 
-# 🚀 Installation and Setup
+## 🚀 Installation and Setup
 
 ### 1️⃣ Clone the Repository
 ```bash
@@ -175,7 +203,7 @@ cp .env.example .env
 ./vendor/bin/sail artisan test
 ```
 
-## Testing the API
+## 🧪 Testing the API
 
 You can test the API using the provided [Postman collection](https://documenter.getpostman.com/view/39711609/2sAYkEpJsu#fcb7b559-58ed-4ae7-9de6-0398c23aa5ef) or any HTTP client:
 
@@ -183,18 +211,47 @@ You can test the API using the provided [Postman collection](https://documenter.
 GET http://0.0.0.0/api/jobs?filter=(job_type=full-time AND (languages HAS_ANY (PHP,JavaScript)))
 ```
 
-## Performance Considerations
+## ⚡ Performance Considerations
 
 The EAV pattern offers flexibility but can impact performance with complex queries. Some optimizations implemented:
 
-1. Proper indexing on the `job_attribute_values` table
-2. Eager loading of relationships to avoid N+1 query problems
-3. Query optimization in the filter builder service
-4. Type casting of attribute values at the application level
+1. **Proper indexing** on the `job_attribute_values` table
+2. **Eager loading** of relationships to avoid N+1 query problems
+3. **Query optimization** in the filter builder service
+4. **Type casting** of attribute values at the application level
+5. **Filter Registry pattern** allows for specialized optimizations per filter type
 
-## Future Improvements
+## 🔄 Extending the Filter System
+
+Thanks to the Filter Registry pattern, adding new filter types is straightforward:
+
+1. Create a new class implementing the `FilterCondition` interface
+2. Implement the `canHandle()` and `apply()` methods
+3. Register your filter in the `FilterServiceProvider`
+
+```php
+// Example: Creating a new filter for date ranges
+class DateRangeFilter extends AbstractFilterCondition
+{
+    public function canHandle(string $expression): bool
+    {
+        return str_contains($expression, ' BETWEEN_DATES ');
+    }
+    
+    public function apply(Builder $query, string $expression): Builder
+    {
+        // Implementation here
+    }
+}
+
+// Register in FilterServiceProvider
+$registry->register(new DateRangeFilter());
+```
+
+## 🔮 Future Improvements
 
 - Implement caching for frequently accessed attributes
 - Add full-text search capabilities
 - Implement attribute value validation based on attribute type
 - Add the ability to define custom attribute validation rules
+- Expand the Filter Registry with more specialized filter types
