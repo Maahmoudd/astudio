@@ -16,7 +16,6 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(IJobFilterService::class, JobFilterService::class);
-        $this->app->bind(IRepository::class, Repository::class);
     }
 
     /**

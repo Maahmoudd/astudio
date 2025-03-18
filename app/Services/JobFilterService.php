@@ -5,11 +5,18 @@ namespace App\Services;
 use App\Enums\AttributeTypeEnum;
 use App\Models\Attribute;
 use App\Models\Job;
+use App\Repositories\Repository;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class JobFilterService implements IJobFilterService
 {
+    protected $jobRepository;
+    public function __construct()
+    {
+        $this->jobRepository = Repository::getRepository('Job');
+    }
+
     /**
      * Apply filters to a job query
      *
@@ -18,7 +25,7 @@ class JobFilterService implements IJobFilterService
      */
     public function applyFilters(array $filters): Builder
     {
-        $query = Job::query();
+        $query = $this->jobRepository->getModel()->query();
 
         // If there's a filter parameter, parse and apply it
         if (!empty($filters['filter'])) {
