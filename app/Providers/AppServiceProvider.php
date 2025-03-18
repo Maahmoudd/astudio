@@ -2,8 +2,6 @@
 
 namespace App\Providers;
 
-use App\Repositories\IRepository;
-use App\Repositories\Repository;
 use App\Services\IJobFilterService;
 use App\Services\JobFilterService;
 use Illuminate\Support\ServiceProvider;
