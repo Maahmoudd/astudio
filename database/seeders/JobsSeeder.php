@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Enums\JobStatusEnum;
 use App\Enums\JobTypeEnum;
-use App\Models\Attribute;
 use App\Models\Category;
 use App\Models\Job;
 use App\Models\Language;
@@ -12,7 +11,6 @@ use App\Models\Location;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class JobsSeeder extends Seeder
 {
@@ -25,10 +23,11 @@ class JobsSeeder extends Seeder
         $this->createPartTimeDesignJobs();
         $this->createContractDataJobs();
         $this->createFreelanceJobs();
+        $this->createSpecialFilterJobs();
     }
 
     /**
-     * Create full-time software jobs
+     * Create full-time software development jobs
      */
     private function createFullTimeSoftwareJobs(): void
     {
@@ -86,12 +85,6 @@ class JobsSeeder extends Seeder
                 'locations' => ['Berlin', 'London'],
                 'categories' => ['Web Development', 'Cloud Computing'],
             ],
-        ];
-
-        $this->createJobs($jobs, $languages, $locations, $categories);
-
-        // Add more jobs in a separate batch to reduce memory usage
-        $jobs = [
             [
                 'title' => 'Backend Python Developer',
                 'description' => 'Looking for a talented Python developer to join our engineering team. You will be working on backend services and APIs for our SaaS platform.',
@@ -108,37 +101,13 @@ class JobsSeeder extends Seeder
                     'seniority_level' => 'Senior',
                     'has_health_insurance' => true,
                     'application_deadline' => Carbon::now()->addMonths(1)->format('Y-m-d'),
-                    'required_skills' => 'Python, Django, FastAPI, PostgreSQL, Docker',
+                    'required_skills' => 'Python, Django, FastAPI, PostgreSQL, Docker, AWS',
                     'benefits' => 'Health and dental insurance, Gym membership, Flexible hours, Annual bonus',
                     'work_schedule' => 'Weekdays',
                 ],
                 'languages' => ['Python'],
                 'locations' => ['San Francisco'],
                 'categories' => ['Web Development', 'Cloud Computing'],
-            ],
-            [
-                'title' => 'Java Enterprise Developer',
-                'description' => 'Join our team to develop robust enterprise applications. You will be responsible for designing, implementing, and maintaining Java-based applications.',
-                'company_name' => 'Enterprise Solutions',
-                'salary_min' => 95000,
-                'salary_max' => 140000,
-                'is_remote' => false,
-                'job_type' => JobTypeEnum::FULL_TIME->value,
-                'status' => JobStatusEnum::PUBLISHED->value,
-                'published_at' => Carbon::now()->subDays(10),
-                'attributes' => [
-                    'years_experience' => 6,
-                    'education_level' => 'Bachelor\'s Degree',
-                    'seniority_level' => 'Senior',
-                    'has_health_insurance' => true,
-                    'application_deadline' => Carbon::now()->addMonths(2)->format('Y-m-d'),
-                    'required_skills' => 'Java, Spring Boot, Hibernate, MySQL, Microservices',
-                    'benefits' => 'Competitive salary, Health benefits, 401(k), Professional development',
-                    'work_schedule' => 'Weekdays',
-                ],
-                'languages' => ['Java'],
-                'locations' => ['New York', 'Toronto'],
-                'categories' => ['Web Development'],
             ],
         ];
 
@@ -340,6 +309,256 @@ class JobsSeeder extends Seeder
     }
 
     /**
+     * Create jobs specifically to match our complex filter examples
+     */
+    private function createSpecialFilterJobs(): void
+    {
+        // Get data for relationships
+        $languages = Language::all();
+        $locations = Location::all()->take(10); // Limit to avoid memory issues
+        $categories = Category::all();
+
+        // Jobs specifically for the complex filter examples
+        $jobs = [
+            // For Filter #1: Full-time PHP or JavaScript jobs with 3+ years experience and senior-level positions that are remote
+            [
+                'title' => 'Senior JavaScript Engineer',
+                'description' => 'Senior JavaScript Engineer position with remote work options and excellent benefits.',
+                'company_name' => 'RemoteTech',
+                'salary_min' => 95000,
+                'salary_max' => 140000,
+                'is_remote' => true,
+                'job_type' => JobTypeEnum::FULL_TIME->value,
+                'status' => JobStatusEnum::PUBLISHED->value,
+                'published_at' => Carbon::now()->subDays(3),
+                'attributes' => [
+                    'years_experience' => 5,
+                    'education_level' => 'Bachelor\'s Degree',
+                    'seniority_level' => 'Senior',
+                    'has_health_insurance' => true,
+                    'application_deadline' => Carbon::now()->addMonths(1)->format('Y-m-d'),
+                    'required_skills' => 'JavaScript, React, Node.js, GraphQL, TypeScript',
+                    'benefits' => 'Health insurance, 401(k), Flexible schedule, Remote work',
+                    'work_schedule' => 'Weekdays',
+                ],
+                'languages' => ['JavaScript'],
+                'locations' => ['New York', 'San Francisco'],
+                'categories' => ['Web Development'],
+            ],
+
+            // For Filter #2: High-paying jobs ($100k+) that offer health insurance and require a Bachelor's degree or higher
+            [
+                'title' => 'Director of Engineering',
+                'description' => 'Lead our engineering team and drive technical excellence across the organization.',
+                'company_name' => 'Enterprise Systems',
+                'salary_min' => 150000,
+                'salary_max' => 200000,
+                'is_remote' => false,
+                'job_type' => JobTypeEnum::FULL_TIME->value,
+                'status' => JobStatusEnum::PUBLISHED->value,
+                'published_at' => Carbon::now()->subDays(5),
+                'attributes' => [
+                    'years_experience' => 8,
+                    'education_level' => 'Master\'s Degree',
+                    'seniority_level' => 'Director',
+                    'has_health_insurance' => true,
+                    'application_deadline' => Carbon::now()->addMonths(2)->format('Y-m-d'),
+                    'required_skills' => 'Team Leadership, Software Architecture, Budget Management',
+                    'benefits' => 'Comprehensive health insurance, 401(k) matching, Stock options',
+                    'work_schedule' => 'Weekdays',
+                ],
+                'languages' => ['Java', 'Python'],
+                'locations' => ['San Francisco'],
+                'categories' => ['Web Development'],
+            ],
+
+            // For Filter #3: Contract or freelance positions with flexible schedules in tech hubs
+            [
+                'title' => 'Frontend Developer (Contract)',
+                'description' => 'Create responsive and accessible user interfaces for our web applications.',
+                'company_name' => 'FlexTech Solutions',
+                'salary_min' => 40000,
+                'salary_max' => 60000,
+                'is_remote' => true,
+                'job_type' => JobTypeEnum::CONTRACT->value,
+                'status' => JobStatusEnum::PUBLISHED->value,
+                'published_at' => Carbon::now()->subDays(2),
+                'attributes' => [
+                    'years_experience' => 2,
+                    'education_level' => 'Bachelor\'s Degree',
+                    'seniority_level' => 'Mid-Level',
+                    'has_health_insurance' => false,
+                    'application_deadline' => Carbon::now()->addWeeks(3)->format('Y-m-d'),
+                    'required_skills' => 'React, CSS, Responsive Design, Accessibility',
+                    'benefits' => 'Flexible schedule, Remote work options',
+                    'work_schedule' => 'Flexible Hours',
+                    'contract_duration' => '6 months',
+                ],
+                'languages' => ['JavaScript', 'HTML/CSS'],
+                'locations' => ['New York', 'San Francisco', 'London'],
+                'categories' => ['Web Development'],
+            ],
+
+            // For Filter #4: Entry or junior positions with upcoming application deadlines
+            [
+                'title' => 'Junior Software Engineer',
+                'description' => 'Great opportunity for recent graduates to join our development team.',
+                'company_name' => 'GradHire Tech',
+                'salary_min' => 60000,
+                'salary_max' => 75000,
+                'is_remote' => false,
+                'job_type' => JobTypeEnum::FULL_TIME->value,
+                'status' => JobStatusEnum::PUBLISHED->value,
+                'published_at' => Carbon::now()->subDays(1),
+                'attributes' => [
+                    'years_experience' => 0,
+                    'education_level' => 'Bachelor\'s Degree',
+                    'seniority_level' => 'Entry Level',
+                    'has_health_insurance' => true,
+                    'application_deadline' => Carbon::now()->addWeeks(2)->format('Y-m-d'),
+                    'required_skills' => 'JavaScript, CSS, HTML, Basic algorithms',
+                    'benefits' => 'Mentorship program, Health insurance, Learning budget',
+                    'work_schedule' => 'Weekdays',
+                ],
+                'languages' => ['JavaScript', 'HTML/CSS'],
+                'locations' => ['Chicago'],
+                'categories' => ['Web Development'],
+            ],
+
+            // For Filter #5: Jobs requiring multiple programming languages with specific experience requirements
+            [
+                'title' => 'Full Stack Developer (2-4 years)',
+                'description' => 'Looking for a developer with experience in both Python and JavaScript.',
+                'company_name' => 'Polyglot Systems',
+                'salary_min' => 75000,
+                'salary_max' => 95000,
+                'is_remote' => true,
+                'job_type' => JobTypeEnum::FULL_TIME->value,
+                'status' => JobStatusEnum::PUBLISHED->value,
+                'published_at' => Carbon::now()->subDays(3),
+                'attributes' => [
+                    'years_experience' => 3,
+                    'education_level' => 'Bachelor\'s Degree',
+                    'seniority_level' => 'Mid-Level',
+                    'has_health_insurance' => true,
+                    'application_deadline' => Carbon::now()->addWeeks(4)->format('Y-m-d'),
+                    'required_skills' => 'Python, JavaScript, React, Django, PostgreSQL',
+                    'benefits' => 'Health insurance, Remote work, Flexible hours',
+                    'work_schedule' => 'Weekdays',
+                ],
+                'languages' => ['Python', 'JavaScript'],
+                'locations' => ['New York', 'Remote'],
+                'categories' => ['Web Development'],
+            ],
+
+            // For Filter #6: Jobs with complex nested conditions
+            [
+                'title' => 'Senior Python Data Scientist',
+                'description' => 'Join our team to work on cutting-edge machine learning projects.',
+                'company_name' => 'AI Research Labs',
+                'salary_min' => 110000,
+                'salary_max' => 150000,
+                'is_remote' => true,
+                'job_type' => JobTypeEnum::FULL_TIME->value,
+                'status' => JobStatusEnum::PUBLISHED->value,
+                'published_at' => Carbon::now()->subDays(4),
+                'attributes' => [
+                    'years_experience' => 4,
+                    'education_level' => 'Master\'s Degree',
+                    'seniority_level' => 'Senior',
+                    'has_health_insurance' => true,
+                    'application_deadline' => Carbon::now()->addWeeks(3)->format('Y-m-d'),
+                    'required_skills' => 'Python, Machine Learning, TensorFlow, NLP',
+                    'benefits' => 'Health insurance, 401(k), Remote work, Conference budget',
+                    'work_schedule' => 'Weekdays',
+                ],
+                'languages' => ['Python'],
+                'locations' => ['Remote'],
+                'categories' => ['Data Science', 'Machine Learning'],
+            ],
+            [
+                'title' => 'Contract ML Engineer (6 months)',
+                'description' => 'Six-month contract position for machine learning implementation.',
+                'company_name' => 'ML Solutions',
+                'salary_min' => 60000,
+                'salary_max' => 80000,
+                'is_remote' => false,
+                'job_type' => JobTypeEnum::CONTRACT->value,
+                'status' => JobStatusEnum::PUBLISHED->value,
+                'published_at' => Carbon::now()->subDays(2),
+                'attributes' => [
+                    'years_experience' => 3,
+                    'education_level' => 'Master\'s Degree',
+                    'seniority_level' => 'Mid-Level',
+                    'has_health_insurance' => false,
+                    'application_deadline' => Carbon::now()->addWeeks(2)->format('Y-m-d'),
+                    'required_skills' => 'Python, ML algorithms, Data processing',
+                    'benefits' => 'Flexible hours, Project completion bonus',
+                    'work_schedule' => 'Weekdays',
+                    'contract_duration' => '6 months',
+                ],
+                'languages' => ['Python', 'R'],
+                'locations' => ['San Francisco'],
+                'categories' => ['Machine Learning'],
+            ],
+
+            // For Filter #7: Recently published jobs with senior positions and competitive salary
+            [
+                'title' => 'Senior Engineering Manager',
+                'description' => 'Lead a team of talented engineers building our core platform.',
+                'company_name' => 'CompetitiveTech',
+                'salary_min' => 130000,
+                'salary_max' => 180000,
+                'is_remote' => true,
+                'job_type' => JobTypeEnum::FULL_TIME->value,
+                'status' => JobStatusEnum::PUBLISHED->value,
+                'published_at' => Carbon::now()->subDays(1),
+                'attributes' => [
+                    'years_experience' => 7,
+                    'education_level' => 'Bachelor\'s Degree',
+                    'seniority_level' => 'Senior',
+                    'has_health_insurance' => true,
+                    'application_deadline' => Carbon::now()->addWeeks(3)->format('Y-m-d'),
+                    'required_skills' => 'Team Management, Technical Leadership, Agile',
+                    'benefits' => 'Comprehensive health insurance, 401(k), Stock options',
+                    'work_schedule' => 'Weekdays',
+                ],
+                'languages' => ['JavaScript', 'TypeScript', 'Python'],
+                'locations' => ['San Francisco', 'Remote'],
+                'categories' => ['Web Development'],
+            ],
+
+            // For Filter #8: Jobs that specifically mention certain skills in the requirements
+            [
+                'title' => 'DevOps Engineer',
+                'description' => 'Join our infrastructure team to improve our cloud deployments.',
+                'company_name' => 'CloudInfra',
+                'salary_min' => 95000,
+                'salary_max' => 130000,
+                'is_remote' => true,
+                'job_type' => JobTypeEnum::FULL_TIME->value,
+                'status' => JobStatusEnum::PUBLISHED->value,
+                'published_at' => Carbon::now()->subDays(3),
+                'attributes' => [
+                    'years_experience' => 3,
+                    'education_level' => 'Bachelor\'s Degree',
+                    'seniority_level' => 'Mid-Level',
+                    'has_health_insurance' => true,
+                    'application_deadline' => Carbon::now()->addWeeks(4)->format('Y-m-d'),
+                    'required_skills' => 'AWS, Docker, Kubernetes, CI/CD, Terraform, Linux',
+                    'benefits' => 'Health insurance, Remote work, Learning budget',
+                    'work_schedule' => 'Weekdays',
+                ],
+                'languages' => ['Python', 'JavaScript'],
+                'locations' => ['Remote'],
+                'categories' => ['DevOps', 'Cloud Computing'],
+            ],
+        ];
+
+        $this->createJobs($jobs, $languages, $locations, $categories);
+    }
+
+    /**
      * Helper method to create jobs with relationships and attributes
      */
     private function createJobs(array $jobsData, $languages, $locations, $categories): void
@@ -355,40 +574,50 @@ class JobsSeeder extends Seeder
             // Remove metadata from job data
             unset($jobData['attributes'], $jobData['languages'], $jobData['locations'], $jobData['categories']);
 
-                // Create the job
+            // Create the job
             $job = Job::create($jobData);
 
-                // Add relationships - do this inside a transaction for each job
+            // Add relationships - do this inside a transaction for each job
             DB::beginTransaction();
-            // Attach languages
-            if (!empty($jobLanguages)) {
-                $languageIds = $languages->whereIn('name', $jobLanguages)->pluck('id')->toArray();
-                if (!empty($languageIds)) {
-                    $job->languages()->attach($languageIds);
+            try {
+                // Attach languages
+                if (!empty($jobLanguages)) {
+                    $languageIds = $languages->whereIn('name', $jobLanguages)->pluck('id')->toArray();
+                    if (!empty($languageIds)) {
+                        $job->languages()->attach($languageIds);
+                    }
                 }
-            }
 
-            // Attach locations
-            if (!empty($jobLocations)) {
-                $locationIds = $locations->whereIn('city', $jobLocations)->pluck('id')->toArray();
-                if (!empty($locationIds)) {
-                    $job->locations()->attach($locationIds);
+                // Attach locations
+                if (!empty($jobLocations)) {
+                    $locationIds = $locations->whereIn('city', $jobLocations)->pluck('id')->toArray();
+                    if (!empty($locationIds)) {
+                        $job->locations()->attach($locationIds);
+                    }
                 }
-            }
 
-            // Attach categories
-            if (!empty($jobCategories)) {
-                $categoryIds = $categories->whereIn('name', $jobCategories)->pluck('id')->toArray();
-                if (!empty($categoryIds)) {
-                    $job->categories()->attach($categoryIds);
+                // Attach categories
+                if (!empty($jobCategories)) {
+                    $categoryIds = $categories->whereIn('name', $jobCategories)->pluck('id')->toArray();
+                    if (!empty($categoryIds)) {
+                        $job->categories()->attach($categoryIds);
+                    }
                 }
-            }
 
-            // Add attribute values
-            if (!empty($attributes)) {
-                $job->setAttributeValuesRelation($attributes);
+                // Add attribute values
+                if (!empty($attributes)) {
+                    if (method_exists($job, 'setAttributeValuesRelation')) {
+                        $job->setAttributeValuesRelation($attributes);
+                    } else if (method_exists($job, 'setAttributeValues')) {
+                        $job->setAttributeValues($attributes);
+                    }
+                }
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                \Log::error('Error creating job: ' . $e->getMessage());
+                continue;
             }
-            DB::commit();
         }
     }
 }
