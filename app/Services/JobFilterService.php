@@ -6,27 +6,33 @@ use App\Enums\AttributeTypeEnum;
 use App\Models\Attribute;
 use App\Models\Job;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class JobFilterService implements IJobFilterService
 {
-
+    /**
+     * Apply filters to a job query
+     *
+     * @param array $filters The filters to apply
+     * @return Builder
+     */
     public function applyFilters(array $filters): Builder
     {
         $query = Job::query();
 
         // If there's a filter parameter, parse and apply it
-        if (!empty($filters['filter'])) {
+        if (isset($filters['filter']) && !empty($filters['filter'])) {
             $filterString = $filters['filter'];
             $query = $this->parseFilterExpression($query, $filterString);
         }
 
         // Apply sorting
-        if (!empty($filters['sort_by'])) {
+        if (isset($filters['sort_by']) && !empty($filters['sort_by'])) {
             $sortField = $filters['sort_by'];
             $sortDirection = $filters['sort_direction'] ?? 'asc';
 
             // Check if sorting by an attribute
-            if (str_starts_with($sortField, 'attribute:')) {
+            if (strpos($sortField, 'attribute:') === 0) {
                 $attributeName = substr($sortField, 10);
                 $query = $this->sortByAttribute($query, $attributeName, $sortDirection);
             } else {
@@ -42,6 +48,11 @@ class JobFilterService implements IJobFilterService
      */
     protected function parseFilterExpression(Builder $query, string $expression): Builder
     {
+        // First, check if the expression is empty
+        if (empty(trim($expression))) {
+            return $query;
+        }
+
         // Handle parentheses and nested expressions
         if ($this->hasOuterParentheses($expression)) {
             return $this->parseFilterExpression($query, substr($expression, 1, -1));
@@ -81,7 +92,9 @@ class JobFilterService implements IJobFilterService
      */
     protected function hasOuterParentheses(string $expression): bool
     {
-        if (str_starts_with($expression, '(') && str_ends_with($expression, ')')) {
+        $expression = trim($expression);
+
+        if (substr($expression, 0, 1) === '(' && substr($expression, -1) === ')') {
             // Count parentheses to make sure the outer ones match
             $depth = 0;
             for ($i = 0; $i < strlen($expression) - 1; $i++) {
@@ -153,7 +166,7 @@ class JobFilterService implements IJobFilterService
      */
     protected function stringContains(string $haystack, string $needle): bool
     {
-        return str_contains(strtolower($haystack), strtolower($needle));
+        return strpos(strtolower($haystack), strtolower($needle)) !== false;
     }
 
     /**
@@ -162,23 +175,23 @@ class JobFilterService implements IJobFilterService
     protected function applyBasicCondition(Builder $query, string $condition): Builder
     {
         // Check for relationship filters
-        if (str_contains($condition, ' HAS_ANY ')) {
+        if (strpos($condition, ' HAS_ANY ') !== false) {
             [$relation, $values] = explode(' HAS_ANY ', $condition);
             return $this->applyHasAnyFilter($query, $relation, $values);
         }
 
-        if (str_contains($condition, ' IS_ANY ')) {
+        if (strpos($condition, ' IS_ANY ') !== false) {
             [$relation, $values] = explode(' IS_ANY ', $condition);
             return $this->applyIsAnyFilter($query, $relation, $values);
         }
 
-        if (str_contains($condition, ' EXISTS')) {
+        if (strpos($condition, ' EXISTS') !== false) {
             $relation = trim(str_replace(' EXISTS', '', $condition));
             return $this->applyExistsFilter($query, $relation);
         }
 
         // Check for attribute filters
-        if (str_starts_with($condition, 'attribute:')) {
+        if (strpos($condition, 'attribute:') === 0) {
             return $this->applyAttributeFilter($query, $condition);
         }
 
@@ -186,43 +199,49 @@ class JobFilterService implements IJobFilterService
         $operators = ['>=', '<=', '!=', '=', '>', '<', ' LIKE '];
 
         foreach ($operators as $operator) {
-            if (str_contains($condition, $operator)) {
-                [$field, $value] = explode($operator, $condition, 2);
-                $field = trim($field);
-                $value = trim($value);
+            if (strpos($condition, $operator) !== false) {
+                $parts = explode($operator, $condition, 2);
+                if (count($parts) === 2) {
+                    $field = trim($parts[0]);
+                    $value = trim($parts[1]);
 
-                // Handle IN operator (multiple values)
-                if (str_starts_with($value, '(') && strpos($value, ')') === strlen($value) - 1) {
-                    return $this->applyInFilter($query, $field, $value, $operator);
-                }
+                    // Handle IN operator (multiple values)
+                    if (strpos($value, '(') === 0 && strpos($value, ')') === strlen($value) - 1) {
+                        return $this->applyInFilter($query, $field, $value, $operator);
+                    }
 
-                // Remove quotes if present
-                if ((str_starts_with($value, "'") && strrpos($value, "'") === strlen($value) - 1) ||
-                    (str_starts_with($value, '"') && strrpos($value, '"') === strlen($value) - 1)) {
-                    $value = substr($value, 1, -1);
-                }
+                    // Remove quotes if present
+                    if ((strpos($value, "'") === 0 && strrpos($value, "'") === strlen($value) - 1) ||
+                        (strpos($value, '"') === 0 && strrpos($value, '"') === strlen($value) - 1)) {
+                        $value = substr($value, 1, -1);
+                    }
 
-                // Apply the appropriate where clause based on the operator
-                switch ($operator) {
-                    case '=':
-                        return $query->where($field, $value);
-                    case '!=':
-                        return $query->where($field, '!=', $value);
-                    case '>':
-                        return $query->where($field, '>', $value);
-                    case '<':
-                        return $query->where($field, '<', $value);
-                    case '>=':
-                        return $query->where($field, '>=', $value);
-                    case '<=':
-                        return $query->where($field, '<=', $value);
-                    case ' LIKE ':
-                        return $query->where($field, 'like', "%{$value}%");
+                    // Convert boolean string values to actual booleans for boolean fields
+                    if (in_array($field, ['is_remote']) && in_array(strtolower($value), ['true', 'false'])) {
+                        $value = strtolower($value) === 'true';
+                    }
+
+                    // Apply the appropriate where clause based on the operator
+                    switch ($operator) {
+                        case '=':
+                            return $query->where($field, $value);
+                        case '!=':
+                            return $query->where($field, '!=', $value);
+                        case '>':
+                            return $query->where($field, '>', $value);
+                        case '<':
+                            return $query->where($field, '<', $value);
+                        case '>=':
+                            return $query->where($field, '>=', $value);
+                        case '<=':
+                            return $query->where($field, '<=', $value);
+                        case ' LIKE ':
+                            return $query->where($field, 'like', "%{$value}%");
+                    }
                 }
             }
         }
 
-        // If we reach here, the condition couldn't be parsed
         return $query;
     }
 
@@ -232,10 +251,25 @@ class JobFilterService implements IJobFilterService
     protected function applyHasAnyFilter(Builder $query, string $relation, string $values): Builder
     {
         $relation = trim($relation);
-        $values = $this->parseValueList($values);
+        $valuesList = $this->parseValueList($values);
 
-        return $query->whereHas($relation, function ($q) use ($values) {
-            $q->whereIn('name', $values);
+        if ($relation === 'languages') {
+            return $query->whereHas($relation, function ($q) use ($valuesList) {
+                $q->whereIn('name', $valuesList);
+            });
+        } else if ($relation === 'locations') {
+            return $query->whereHas($relation, function ($q) use ($valuesList) {
+                $q->whereIn('city', $valuesList);
+            });
+        } else if ($relation === 'categories') {
+            return $query->whereHas($relation, function ($q) use ($valuesList) {
+                $q->whereIn('name', $valuesList);
+            });
+        }
+
+        // Default fallback to name column
+        return $query->whereHas($relation, function ($q) use ($valuesList) {
+            $q->whereIn('name', $valuesList);
         });
     }
 
@@ -245,28 +279,45 @@ class JobFilterService implements IJobFilterService
     protected function applyIsAnyFilter(Builder $query, string $relation, string $values): Builder
     {
         $relation = trim($relation);
-        $values = $this->parseValueList($values);
+        $valuesList = $this->parseValueList($values);
 
         // Special case for locations to handle "Remote"
-        if ($relation === 'locations' && in_array('Remote', $values)) {
-            $key = array_search('Remote', $values);
-            if ($key !== false) {
-                unset($values[$key]);
+        if ($relation === 'locations') {
+            $hasRemote = in_array('Remote', $valuesList, true) || in_array('remote', $valuesList, true);
+            $nonRemoteValues = array_filter($valuesList, function($value) {
+                return strtolower($value) !== 'remote';
+            });
 
-                return $query->where(function ($q) use ($relation, $values) {
+            if ($hasRemote) {
+                // Return jobs that are either remote or in one of the specified locations
+                return $query->where(function ($q) use ($relation, $nonRemoteValues) {
                     $q->where('is_remote', true);
 
-                    if (!empty($values)) {
-                        $q->orWhereHas($relation, function ($locationQuery) use ($values) {
-                            $locationQuery->whereIn('city', $values);
+                    if (!empty($nonRemoteValues)) {
+                        $q->orWhereHas($relation, function ($locationQuery) use ($nonRemoteValues) {
+                            $locationQuery->whereIn('city', $nonRemoteValues);
                         });
                     }
                 });
             }
+
+            // Standard location filter if "Remote" is not in the list
+            return $query->whereHas($relation, function ($q) use ($valuesList) {
+                $q->whereIn('city', $valuesList);
+            });
+        } else if ($relation === 'languages') {
+            return $query->whereHas($relation, function ($q) use ($valuesList) {
+                $q->whereIn('name', $valuesList);
+            });
+        } else if ($relation === 'categories') {
+            return $query->whereHas($relation, function ($q) use ($valuesList) {
+                $q->whereIn('name', $valuesList);
+            });
         }
 
-        return $query->whereHas($relation, function ($q) use ($values) {
-            $q->whereIn('name', $values);
+        // Default fallback to name column
+        return $query->whereHas($relation, function ($q) use ($valuesList) {
+            $q->whereIn('name', $valuesList);
         });
     }
 
@@ -301,7 +352,7 @@ class JobFilterService implements IJobFilterService
     protected function parseValueList(string $valueList): array
     {
         // Remove parentheses if present
-        if (str_starts_with($valueList, '(') && strrpos($valueList, ')') === strlen($valueList) - 1) {
+        if (strpos($valueList, '(') === 0 && strrpos($valueList, ')') === strlen($valueList) - 1) {
             $valueList = substr($valueList, 1, -1);
         }
 
@@ -310,8 +361,8 @@ class JobFilterService implements IJobFilterService
 
         // Remove quotes if present
         foreach ($values as &$value) {
-            if ((str_starts_with($value, "'") && strrpos($value, "'") === strlen($value) - 1) ||
-                (str_starts_with($value, '"') && strrpos($value, '"') === strlen($value) - 1)) {
+            if ((strpos($value, "'") === 0 && strrpos($value, "'") === strlen($value) - 1) ||
+                (strpos($value, '"') === 0 && strrpos($value, '"') === strlen($value) - 1)) {
                 $value = substr($value, 1, -1);
             }
         }
@@ -346,7 +397,7 @@ class JobFilterService implements IJobFilterService
         $value = null;
 
         foreach ($operators as $op) {
-            if (str_starts_with($restOfCondition, $op)) {
+            if (strpos($restOfCondition, $op) === 0) {
                 $operator = $op;
                 $value = trim(substr($restOfCondition, strlen($op)));
                 break;
@@ -358,19 +409,37 @@ class JobFilterService implements IJobFilterService
         }
 
         // Remove quotes if present
-        if ((str_starts_with($value, "'") && strrpos($value, "'") === strlen($value) - 1) ||
-            (str_starts_with($value, '"') && strrpos($value, '"') === strlen($value) - 1)) {
+        if ((strpos($value, "'") === 0 && strrpos($value, "'") === strlen($value) - 1) ||
+            (strpos($value, '"') === 0 && strrpos($value, '"') === strlen($value) - 1)) {
             $value = substr($value, 1, -1);
         }
 
+        // Determine the relationship method to use - check both possible names
+        $relationMethod = method_exists(Job::class, 'attributeValuesRelation')
+            ? 'attributeValuesRelation'
+            : 'attributeValues';
+
+        // If neither method exists, try a direct approach with table name
+        if (!method_exists(Job::class, $relationMethod)) {
+            return $this->applyAttributeFilterWithTableName($query, $attribute, $operator, $value);
+        }
+
+        // Handle boolean values
+        if (($attribute->type === AttributeTypeEnum::BOOLEAN ||
+                (property_exists($attribute, 'type') && $attribute->type === 'boolean')) &&
+            in_array(strtolower($value), ['true', 'false', '1', '0'])) {
+            $value = in_array(strtolower($value), ['true', '1']) ? 'true' : 'false';
+        }
+
         // Handle IN operator for select type attributes
-        if ($attribute->type === AttributeTypeEnum::SELECT &&
-            str_starts_with($value, '(') &&
+        if (($attribute->type === AttributeTypeEnum::SELECT ||
+                (property_exists($attribute, 'type') && $attribute->type === 'select')) &&
+            strpos($value, '(') === 0 &&
             strpos($value, ')') === strlen($value) - 1) {
 
             $values = $this->parseValueList($value);
 
-            return $query->whereHas('attributeValuesRelation', function ($q) use ($attribute, $values, $operator) {
+            return $query->whereHas($relationMethod, function ($q) use ($attribute, $values, $operator) {
                 $q->where('attribute_id', $attribute->id);
 
                 if ($operator === '=') {
@@ -382,7 +451,7 @@ class JobFilterService implements IJobFilterService
         }
 
         // Apply the filter based on attribute type and operator
-        return $query->whereHas('attributeValuesRelation', function ($q) use ($attribute, $operator, $value) {
+        return $query->whereHas($relationMethod, function ($q) use ($attribute, $operator, $value) {
             $q->where('attribute_id', $attribute->id);
 
             switch ($operator) {
@@ -412,6 +481,46 @@ class JobFilterService implements IJobFilterService
     }
 
     /**
+     * Direct approach for attribute filtering using table name
+     */
+    protected function applyAttributeFilterWithTableName(Builder $query, $attribute, $operator, $value): Builder
+    {
+        // Default table name is job_attribute_values
+        $tableName = 'job_attribute_values';
+
+        return $query->whereExists(function ($subQuery) use ($tableName, $attribute, $operator, $value) {
+            $subQuery->select(DB::raw(1))
+                ->from($tableName)
+                ->whereRaw($tableName . '.job_id = jobs.id')
+                ->where($tableName . '.attribute_id', $attribute->id);
+
+            switch ($operator) {
+                case '=':
+                    $subQuery->where($tableName . '.value', $value);
+                    break;
+                case '!=':
+                    $subQuery->where($tableName . '.value', '!=', $value);
+                    break;
+                case '>':
+                    $subQuery->where($tableName . '.value', '>', $value);
+                    break;
+                case '<':
+                    $subQuery->where($tableName . '.value', '<', $value);
+                    break;
+                case '>=':
+                    $subQuery->where($tableName . '.value', '>=', $value);
+                    break;
+                case '<=':
+                    $subQuery->where($tableName . '.value', '<=', $value);
+                    break;
+                case ' LIKE ':
+                    $subQuery->where($tableName . '.value', 'like', "%{$value}%");
+                    break;
+            }
+        });
+    }
+
+    /**
      * Sort by attribute
      */
     protected function sortByAttribute(Builder $query, string $attributeName, string $direction = 'asc'): Builder
@@ -422,7 +531,15 @@ class JobFilterService implements IJobFilterService
             return $query;
         }
 
-        return $query->leftJoin('job_attribute_values as sort_values', function ($join) use ($attribute) {
+        // Determine the name of the job_attribute_values table
+        $relationMethod = method_exists(Job::class, 'attributeValuesRelation')
+            ? 'attributeValuesRelation'
+            : 'attributeValues';
+
+        // Default table name is job_attribute_values
+        $tableName = 'job_attribute_values';
+
+        return $query->leftJoin("{$tableName} as sort_values", function ($join) use ($attribute) {
             $join->on('jobs.id', '=', 'sort_values.job_id')
                 ->where('sort_values.attribute_id', '=', $attribute->id);
         })
